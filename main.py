@@ -3,6 +3,7 @@ from tkinter import messagebox
 import pandas
 import random
 import pyperclip
+import json
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
 
@@ -40,8 +41,14 @@ def save():
     pass_text = pass_entry.get()
 
     print(web_text, user_text, pass_text)
+    new_data = {
+        web_text:{
+            "email": user_text,
+            "password": pass_text
+        }
+    }
 
-    if len(web_text) == 0 or len(pass_text):
+    if len(web_text) == 0 or len(pass_text) == 0:
         messagebox.showerror(title="Missing Values", message="Please input details")
     else:
         proceed_save = messagebox.askokcancel(title=web_text, message=f"There are the details entered:\n"
@@ -49,14 +56,48 @@ def save():
                                                    f"Password: {pass_text}\n"
                                                    f"do you want to save this?")
         if proceed_save:
-            with open("data.txt", "a") as data:
-                text_to_save = f"{web_text} | {user_text} | {pass_text}\n"
-                data.write(text_to_save)
+            try:
+                with open("data.json", "r") as data:
+                    json_data = json.load(data)
+            except FileNotFoundError as err:
+                print(err)
+                with open("data.json", "w") as data:
+                    json.dump(new_data, data, indent=4)
+            else:
+                json_data.update(new_data)
+
+                with open("data.json", "w") as data:
+                    # save updated data
+                    json.dump(json_data, data, indent=4)
+            finally:
                 website_entry.delete(0, END)
                 pass_entry.delete(0, END)
 
 
+
 # ---------------------------- UI SETUP ------------------------------- #
+
+def find_password():
+    web_text = website_entry.get()
+    print(f"Searching for {web_text}")
+
+    try:
+        with open("data.json") as json_file:
+            json_data = json.load(json_file)
+    except FileNotFoundError:
+        print("No Saved Data")
+    else:
+        try:
+            searched = json_data[web_text]
+        except KeyError:
+            print(f"No saved data for {web_text}")
+            messagebox.showerror(title="Not Found", message=f"Can't find {web_text} account")
+        else:
+            email = searched["email"],
+            password = searched["password"]
+            messagebox.showinfo(title=f"{web_text} account", message=f"Email: {email}\n"
+                                                                     f"Password: {password}")
+
 
 window = Tk()
 window.title("Password Manager")
@@ -79,9 +120,12 @@ website_entry = Entry(width=35)
 email_user_entry = Entry(width=35)
 pass_entry = Entry(width=21)
 
-website_entry.grid(column=1, row=1, columnspan=2, sticky="EW")
+website_entry.grid(column=1, row=1, sticky="EW")
 email_user_entry.grid(column=1, row=2, columnspan=2, sticky="EW")
 pass_entry.grid(column=1, row=3, sticky="EW")
+
+search_btn = Button(text="Search", command=find_password)
+search_btn.grid(column=2, row=1, sticky="EW")
 
 generate_btn = Button(text="Generate Password", command=generate_pass)
 generate_btn.grid(column=2, row=3, sticky="EW")
